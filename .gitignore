@@ -34,6 +34,9 @@ modules.order
 *.log
 *.tmp
 
+# Date generate la rulare (CSV-urile scrise de business-service)
+**/business-service/data/
+
 # Fișiere locale Claude Code (nu se publică)
 CLAUDE.md
 .claude/
