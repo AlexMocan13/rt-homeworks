@@ -59,7 +59,7 @@ Pe ESP32, Arduino rulează peste **FreeRTOS**, un sistem de operare de timp real
 | `System.nanoTime()` (timp monoton) | `millis()` sau `xTaskGetTickCount()` |
 | `volatile` pentru perioadă și prag | `volatile` (variabile globale, citite și modificate din taskuri diferite) |
 
-Diferența importantă față de Java: aici **prioritățile contează**. ESP32-C3 are un singur nucleu, iar planificatorul FreeRTOS rulează mereu taskul gata de execuție cu prioritatea cea mai mare. Alegeți prioritățile celor trei taskuri între 2 și 19: peste `loopTask` (1), dar sub taskurile sistemului care se ocupă de evenimente și de Wi-Fi (20 și 23).
+Diferența importantă față de Java: aici **prioritățile contează**. ESP32-C3 are un singur nucleu, iar planificatorul FreeRTOS rulează mereu taskul gata de execuție cu prioritatea cea mai mare. Scheletul pornește taskurile cu prioritățile din constantele `PRIO_SPORADIC` (5), `PRIO_PERIODIC` (4) și `PRIO_APERIODIC` (3). Le puteți schimba, dar păstrați-le între 2 și 19: peste `loopTask` (1) și sub taskurile sistemului care se ocupă de evenimente și de Wi-Fi (20 și 23).
 
 ## Resurse puse la dispoziție
 
@@ -74,12 +74,12 @@ Repository-ul cu laboratoare este o **sursă de exemple de cod**. Nu trebuie să
 
 ### `start/esp32_device/`
 
-Scheletul schiței Arduino. Compilează, dar nu face încă nimic.
+Scheletul schiței Arduino. Compilează și rulează: `setup()` creează cele două cozi și pornește cele trei taskuri. Taskul periodic afișează pe Serial câte un mesaj la fiecare job (`[periodic] job 1, ...`), cu așteptare absolută pe grila de eliberări. Taskurile sporadic și aperiodic stau blocate în `xQueueReceive`, pentru că deocamdată nimeni nu pune nimic în cozile lor. Încărcați-l pe placă înainte să scrieți cod, ca să vedeți structura în funcțiune.
 
 | Fișier | Ce conține |
 |--------|------------|
 | `config.h` | rețeaua Wi-Fi, brokerul, `STUDENT`, `DEVICE_ID`, valorile inițiale (perioada, pragul, intervalul minim între sosiri) și `make_topic()`, care construiește numele topic-urilor |
-| `esp32_device.ino` | `read_temperature()` (senzorul intern), `epoch_ms()` (timestamp-ul), funcțiile goale ale celor trei taskuri și `setup()`, cu `TODO 0` … `TODO 3` |
+| `esp32_device.ino` | prioritățile și stiva taskurilor, tipurile elementelor din cozi (`AlarmEvent`, `Command`), cozile `g_alarms` și `g_commands`, `read_temperature()` (senzorul intern), `epoch_ms()` (timestamp-ul), cele trei taskuri cu buclele lor provizorii și `setup()`, cu `TODO 0` … `TODO 3` |
 
 Deschideți `esp32_device.ino` în Arduino IDE (folderul și fișierul `.ino` au același nume, cum cere Arduino IDE). Setările plăcii sunt în [`exemple/README.md`](exemple/README.md#2-configurarea-arduino-ide).
 
@@ -128,21 +128,21 @@ Senzorul intern nu poate fi „resetat”, de aceea comanda `RESET` are alt efec
 
 - **Timestamp-ul** este, ca în Java, numărul de milisecunde de la 1 ianuarie 1970. Placa nu are ceas de timp real: la pornire nu știe ora. O aflați prin **SNTP**, după conectarea la Wi-Fi: `configTime(0, 0, NTP_SERVER)`, apoi așteptați sincronizarea cu `getLocalTime(&tm, 10000)`. Abia după aceea `epoch_ms()` dă valori corecte. Valoarea are 64 de biți și se tipărește cu `%lld`: `(long long)epoch_ms()`.
 - **Numerele zecimale** se scriu cu punct: `snprintf(..., "%.2f", t)` pune mereu punct, deci business-service-ul le poate citi cu `Double.parseDouble`.
-- **Textul unei comenzi primite** (`ev->data` în `MQTT_EVENT_DATA`) nu se termină cu `'\0'`. Copiați exact `ev->data_len` octeți într-un buffer, adăugați `'\0'`, apoi puneți bufferul în coadă. `xQueueSend` copiază elementul, deci elementul cozii trebuie să fie bufferul însuși, de exemplu un `struct` cu un câmp `char text[64]`, nu un pointer.
+- **Textul unei comenzi primite** (`ev->data` în `MQTT_EVENT_DATA`) nu se termină cu `'\0'`. Copiați cel mult `ev->data_len` octeți în câmpul `text` al unui `Command` (trunchiați dacă textul nu încape), adăugați `'\0'`, apoi puneți structura în coadă. `xQueueSend` copiază toată structura, deci în coadă ajunge textul însuși, nu un pointer spre bufferul clientului MQTT, care nu mai este valid după ce handlerul se termină.
 - **Handlerul evenimentelor MQTT** rulează pe taskul clientului MQTT, nu pe taskurile voastre. În el doar puneți comanda în coadă, nu o executați: execuția este jobul taskului aperiodic.
 - **Abonarea** la topic-ul de comenzi se face la fiecare `MQTT_EVENT_CONNECTED`, ca în `mqtt_hello`: după o reconectare, brokerul a uitat abonările.
 - **Client id-ul MQTT** trebuie să fie unic pe broker, de exemplu `popescu-ion-esp32-1`. Doi clienți cu același id se deconectează unul pe altul la nesfârșit.
-- **Stiva taskurilor**: pe ESP32, dimensiunea din `xTaskCreate` este în octeți. `snprintf` cu numere zecimale are nevoie de stivă, deci folosiți cel puțin 4096. O stivă prea mică repornește placa, cu un mesaj `Stack canary watchpoint triggered` în Serial Monitor.
+- **Stiva taskurilor**: pe ESP32, dimensiunea din `xTaskCreate` este în octeți (`TASK_STACK_BYTES` = 4096 în schelet). `snprintf` cu numere zecimale are nevoie de stivă, deci nu o micșorați; dacă adăugați tablouri mari în taskuri, măriți-o. O stivă prea mică repornește placa, cu un mesaj `Stack canary watchpoint triggered` în Serial Monitor.
 - **Serial Monitor** este singura voastră fereastră spre placă: afișați pe `Serial` ce face fiecare task (job pornit, alarmă respinsă, comandă executată).
 
 ## Cerințe
 
 ### 1. Device-ul ESP32 (`start/esp32_device/`)
 
-- **TODO 0 – structura aplicației** (`setup()`): conectarea la Wi-Fi, sincronizarea orei prin SNTP, crearea celor două cozi, pornirea clientului MQTT (cu abonarea la topic-ul de comenzi și punerea comenzilor primite în coadă) și pornirea celor trei taskuri, cu prioritățile alese de voi. În tema 01, partea aceasta era dată gata (`DeviceSimulator`, `MqttConnection`). Porniți de la `mqtt_hello` din laboratorul 0.
-- **TODO 1 – task periodic** (`periodic_task`): la fiecare job citește senzorul și publică telemetria. Eliberările respectă grila, cu perioada $T$ = `g_period_ms`. Folosiți **așteptare absolută** (`xTaskDelayUntil`), nu relativă (`vTaskDelay`), ca să nu apară derivă. Când temperatura depășește pragul, jobul pune un eveniment în coada de alarme.
-- **TODO 2 – task sporadic** (`sporadic_task`): publică alarmele și impune intervalul minim între sosiri `MIN_INTERARRIVAL_MS`: evenimentele care sosesc mai des sunt respinse.
-- **TODO 3 – task aperiodic** (`aperiodic_task`): execută comenzile din tabelul de mai sus și publică o confirmare pe topic-ul `status`. O comandă greșită produce un mesaj `ERROR ...` și nu oprește taskul.
+- **TODO 0 – conectarea** (`setup()`): conectarea la Wi-Fi, sincronizarea orei prin SNTP și pornirea clientului MQTT, cu abonarea la topic-ul de comenzi și punerea comenzilor primite în coada `g_commands`. Cozile și taskurile sunt deja create în schelet. În tema 01, partea aceasta era dată gata (`MqttConnection`). Porniți de la `mqtt_hello` din laboratorul 0.
+- **TODO 1 – task periodic** (`periodic_task`): înlocuiți mesajul provizoriu cu jobul real: citește senzorul și publică telemetria. Eliberările respectă grila, cu perioada $T$ = `g_period_ms`. Bucla din schelet folosește deja **așteptarea absolută** (`xTaskDelayUntil`); păstrați-o, nu o înlocuiți cu așteptarea relativă (`vTaskDelay`), care duce la derivă. Când temperatura depășește pragul, jobul pune un `AlarmEvent` în coada `g_alarms`, fără să se blocheze (timeout 0).
+- **TODO 2 – task sporadic** (`sporadic_task`): după `xQueueReceive`, publică alarmele și impune intervalul minim între sosiri `MIN_INTERARRIVAL_MS`: evenimentele care sosesc mai des sunt respinse.
+- **TODO 3 – task aperiodic** (`aperiodic_task`): după `xQueueReceive`, execută comenzile din tabelul de mai sus și publică o confirmare pe topic-ul `status`. O comandă greșită produce un mesaj `ERROR ...` și nu oprește taskul.
 
 ### 2. Serviciul business (`start/business-service/`)
 
