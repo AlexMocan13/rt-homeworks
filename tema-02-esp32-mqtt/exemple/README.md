@@ -7,7 +7,7 @@ Exemplele pentru această temă nu sunt în acest repository, ci în repository-
 Repository-ul conține un laborator introductiv (`lab0-arduino-basics`) și cinci laboratoare de timp real pe ESP32-C3 Super Mini. Pentru temă, folosiți-l **ca sursă de exemple de cod**:
 
 - **nu** trebuie să parcurgeți laboratoarele și nici să urmați pas cu pas toate instrucțiunile din ele;
-- vă interesează **exemplele din laboratorul 0**, mai ales `mqtt_hello` (secțiunea [6](#6-ce-folosiți-din-laboratorul-0));
+- vă interesează **exemplele din laboratorul 0** (secțiunea [6](#6-ce-folosiți-din-laboratorul-0)); pe baza lor scrieți taskurile temei;
 - din restul repository-ului vă ajută doar câteva referințe punctuale despre FreeRTOS (secțiunea [7](#7-referințe-despre-freertos)).
 
 Laboratoarele sunt scrise în engleză.
@@ -93,23 +93,23 @@ Citiți [`lab0-arduino-basics/README.md`](https://github.com/automatica-cluj/rt-
 |--------|-----------------|---------------------------|
 | `hello_serial` | structura `setup()` / `loop()`, `Serial.begin()`, așteptarea Serial Monitor-ului la pornire, `Serial.printf()`, tipurile C pe acest cip (`uint32_t`, `int64_t`) | mesajele de diagnostic pe Serial; tipărirea timestamp-ului pe 64 de biți |
 | `blink` | LED-ul (activ pe LOW), `millis()` vs `delay()`: de ce o așteptare blocantă oprește tot restul programului | înțelegeți de ce fiecare activitate primește propriul task FreeRTOS: acolo, o așteptare blochează doar taskul care așteaptă |
-| `mqtt_hello` | conectarea la Wi-Fi, clientul MQTT din ESP-IDF (fără biblioteci de instalat), handlerul de evenimente, abonarea la fiecare conectare, publicarea, citirea unui mesaj primit (`ev->data`, `ev->data_len`) | **TODO 0** aproape în întregime, plus publicarea din TODO 1 … 3 |
+| `mqtt_hello` | conectarea la Wi-Fi, clientul MQTT din ESP-IDF (fără biblioteci de instalat), care rulează în propriul task FreeRTOS, handlerul de evenimente, abonarea la fiecare conectare, publicarea, citirea unui mesaj primit | baza pentru `connection.cpp` din schelet: citiți-l ca să înțelegeți conexiunea pe care o primiți gata făcută și de ce `command_received()` rulează pe alt task decât taskurile voastre |
 | `button_poll`, `pwm_fade` | butonul BOOT, PWM | nu sunt necesare pentru temă |
 
-Ce schimbați când porniți de la `mqtt_hello`:
+Ce diferă `connection.cpp` din schelet față de `mqtt_hello`:
 
-| `mqtt_hello` | Tema 02 |
+| `mqtt_hello` | Tema 02 (`connection.cpp`) |
 |--------------|---------|
 | topic-uri `rt-labs/<id>/uptime` și `rt-labs/<id>/led` | topic-uri `ssatr/<student>/devices/<DEVICE_ID>/...`, construite cu `make_topic()` din `config.h` |
 | client id `rt-labs-<id>` | client id unic, de exemplu `<STUDENT>-<DEVICE_ID>` |
 | QoS 0 | QoS 1, ca în tema 01 |
-| `loop()` publică o dată pe secundă, cu `delay()` | trei taskuri FreeRTOS; `loop()` nu mai face nimic |
-| mesajul primit aprinde LED-ul direct în handler | handlerul doar pune comanda în coadă; o execută taskul aperiodic |
+| `loop()` publică o dată pe secundă, cu `delay()` | `mqtt_publish()`, apelată din taskurile voastre; `loop()` nu mai face nimic |
+| mesajul primit aprinde LED-ul direct în handler | handlerul copiază textul (cu `'\0'`) și apelează `command_received()`, care îl pune în coadă; comanda o execută taskul aperiodic |
 | — | după Wi-Fi, sincronizarea orei prin SNTP (`configTime`, `getLocalTime`) |
 
 ## 7. Referințe despre FreeRTOS
 
-Laboratorul 0 nu folosește FreeRTOS direct. Pentru taskuri, priorități, `xTaskDelayUntil` și cozi, uitați-vă doar la:
+Laboratorul 0 nu creează taskuri FreeRTOS proprii. Pentru taskuri, priorități, `xTaskDelayUntil` și cozi, de care aveți nevoie la TODO 0 … 3, uitați-vă doar la:
 
 - [`docs/freertos_concepts.md`](https://github.com/automatica-cluj/rt-labs-esp32c3/blob/main/docs/freertos_concepts.md): taskuri și priorități, taskurile pornite de sistem (cu prioritățile lor), tick-ul, cozile;
 - `lab1-time-latency/periodic_jitter/periodic_jitter.ino`: un task periodic cu `xTaskCreate` și `xTaskDelayUntil`, comparat cu varianta cu așteptare relativă.
