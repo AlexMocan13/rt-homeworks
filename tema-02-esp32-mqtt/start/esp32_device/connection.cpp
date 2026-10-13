@@ -8,11 +8,25 @@
 #include "connection.h"
 
 #include <WiFi.h>
+#include <esp_mac.h>
 #include <sys/time.h>
 #include <time.h>
 
 #include "config.h"
 #include "mqtt_client.h"
+
+// "esp32-" + ultimii 3 octeți ai adresei MAC (partea proprie fiecărei plăci).
+// Adresa vine din eFuse, deci se poate citi înainte de pornirea Wi-Fi-ului.
+static const char* read_device_id(void) {
+    static char id[16];
+    uint8_t mac[6];
+    esp_read_mac(mac, ESP_MAC_WIFI_STA);
+    snprintf(id, sizeof(id), "esp32-%02x%02x%02x", mac[3], mac[4], mac[5]);
+    return id;
+}
+
+// inițializată înainte de setup()
+const char* const DEVICE_ID = read_device_id();
 
 static esp_mqtt_client_handle_t g_client = NULL;
 static char g_command_topic[80];

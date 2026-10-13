@@ -42,7 +42,7 @@ void mqtt_start(void);
 // placa nu s-a conectat încă la broker, mesajul așteaptă în clientul MQTT.
 // Întoarce false dacă mesajul nu a putut fi trimis.
 //
-//   mqtt_publish("telemetry", "esp32-1;1727600000000;23.45");
+//   mqtt_publish("telemetry", "esp32-a1b2c3;1727600000000;23.45");
 bool mqtt_publish(const char* kind, const char* text);
 
 // Apelată de clientul MQTT pentru fiecare comandă primită, de exemplu
