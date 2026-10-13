@@ -75,6 +75,10 @@ void command_received(const char* text) {
 
 void setup() {
     Serial.begin(115200);
+    // Fără așteptare la scriere: cu placa la USB, dar fără Serial Monitor deschis,
+    // fiecare Serial.printf() ar aștepta până la 2 s să fie citit și ar întârzia
+    // taskul care scrie. Așa, textul pe care nu-l citește nimeni se pierde.
+    Serial.setTxTimeoutMs(0);
     uint32_t t = millis();
     while (!Serial && millis() - t < 3000) delay(10);  // așteptăm Serial Monitor, cel mult 3 s
     delay(200);

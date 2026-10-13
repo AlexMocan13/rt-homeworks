@@ -134,6 +134,7 @@ Senzorul intern nu poate fi „resetat”, de aceea comanda `RESET` are alt efec
 - **Ordinea din `setup()`**: cozile se creează înainte de `mqtt_start()`, pentru că de acolo încolo pot sosi comenzi, iar `command_received()` le pune în coadă. Taskurile se pornesc după `mqtt_start()`, altfel primele mesaje publicate se pierd.
 - **Stiva taskurilor**: pe ESP32, dimensiunea din `xTaskCreate` este în octeți. `snprintf` cu numere zecimale are nevoie de stivă, deci folosiți cel puțin 4096. O stivă prea mică repornește placa, cu un mesaj `Stack canary watchpoint triggered` în Serial Monitor.
 - **Serial Monitor** este singura voastră fereastră spre placă: afișați pe `Serial` ce face fiecare task (job pornit, alarmă respinsă, comandă executată).
+- **`Serial.setTxTimeoutMs(0)`** din `setup()` rămâne pe loc. Fără el, cu placa la USB dar fără Serial Monitor deschis, fiecare `Serial.printf()` blochează taskul până la 2 s: taskul periodic ratează eliberări, iar telemetria nu iese mai des de o dată la 2 s, oricare ar fi perioada.
 
 ## Cerințe
 
