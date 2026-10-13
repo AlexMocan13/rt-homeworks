@@ -41,7 +41,7 @@ flowchart LR
     B -- commands --> A
 ```
 
-Ca business-service-ul să funcționeze fără modificări, placa trebuie să respecte **exact protocolul din tema 01**: aceleași topic-uri, același format al mesajelor, aceleași comenzi. Pentru business-service, placa este doar încă un device, cu ID-ul `esp32-1`. Puteți rula în paralel și `device-simulator` din tema 01: dashboard-ul va afișa ambele device-uri.
+Ca business-service-ul să funcționeze fără modificări, placa trebuie să respecte **exact protocolul din tema 01**: aceleași topic-uri, același format al mesajelor, aceleași comenzi. Pentru business-service, placa este doar încă un device, cu ID-ul format din `esp32-` și ultimele 6 cifre hexa ale adresei MAC a plăcii, de exemplu `esp32-a1b2c3`. ID-ul se citește singur la pornire și apare pe prima linie din Serial Monitor. Puteți rula în paralel și `device-simulator` din tema 01: dashboard-ul va afișa ambele device-uri.
 
 ## De la thread-uri Java la taskuri FreeRTOS
 
@@ -78,7 +78,7 @@ Scheletul schiței Arduino. Partea de comunicație este gata: Serial, Wi-Fi, sin
 
 | Fișier | Ce conține |
 |--------|------------|
-| `config.h` | rețeaua Wi-Fi, brokerul, `STUDENT`, `DEVICE_ID`, valorile inițiale (perioada, pragul, intervalul minim între sosiri) și `make_topic()`, care construiește numele topic-urilor |
+| `config.h` | rețeaua Wi-Fi, brokerul, `STUDENT`, `DEVICE_ID` (citit din adresa MAC), valorile inițiale (perioada, pragul, intervalul minim între sosiri) și `make_topic()`, care construiește numele topic-urilor |
 | `connection.h`, `connection.cpp` | gata implementate, nu trebuie modificate (echivalentul `MqttConnection` din tema 01): `wifi_connect()`, `time_sync()`, `epoch_ms()` (timestamp-ul), `mqtt_start()`, `mqtt_publish(kind, text)`; comenzile primite sunt trimise funcției `command_received(text)` |
 | `esp32_device.ino` | aici lucrați: `read_temperature()` (senzorul intern), descrierea celor trei taskuri, `command_received()` și `setup()`, cu `TODO 0` … `TODO 3` |
 
@@ -101,7 +101,7 @@ Placa nu are un senzor extern. Se folosește **senzorul intern al ESP32-C3**, ci
 - rezoluția este de aproximativ 1 °C, deci valorile publicate sar din grad în grad (`36.80`, `35.80`, ...);
 - odată stabilizată, variază puțin, deci alarmele nu apar singure, ca în tema 01.
 
-Cu pragul inițial de 45 °C, alarmele apar doar în primele secunde după pornire. Ca să provocați alarme mai târziu, urmăriți telemetria și trimiteți un prag cu un grad sub valoarea citită, de exemplu `esp32-1 SET_THRESHOLD 35`. Temperatura publicată trece atunci de prag la fiecare job, iar taskul sporadic trebuie să respingă evenimentele care sosesc mai des decât `MIN_INTERARRIVAL_MS`.
+Cu pragul inițial de 45 °C, alarmele apar doar în primele secunde după pornire. Ca să provocați alarme mai târziu, urmăriți telemetria și trimiteți un prag cu un grad sub valoarea citită, de exemplu `esp32-a1b2c3 SET_THRESHOLD 35` (cu ID-ul plăcii voastre). Temperatura publicată trece atunci de prag la fiecare job, iar taskul sporadic trebuie să respingă evenimentele care sosesc mai des decât `MIN_INTERARRIVAL_MS`.
 
 ## Brokerul MQTT, topic-urile și mesajele
 
@@ -109,10 +109,10 @@ Totul este ca în [tema 01](../tema-01-iot-mqtt/README.md#brokerul-mqtt): broker
 
 | Topic | Direcție | Tip task | Conținut |
 |-------|----------|----------|----------|
-| `ssatr/<student>/devices/esp32-1/telemetry` | device → service | periodic | `esp32-1;timestamp;temperatura` |
-| `ssatr/<student>/devices/esp32-1/alarm` | device → service | sporadic | `esp32-1;timestamp;temperatura;prag` |
-| `ssatr/<student>/devices/esp32-1/commands` | service → device | aperiodic | `SET_INTERVAL 1000` |
-| `ssatr/<student>/devices/esp32-1/status` | device → service | aperiodic | `esp32-1;timestamp;OK SET_INTERVAL 1000` |
+| `ssatr/<student>/devices/esp32-a1b2c3/telemetry` | device → service | periodic | `esp32-a1b2c3;timestamp;temperatura` |
+| `ssatr/<student>/devices/esp32-a1b2c3/alarm` | device → service | sporadic | `esp32-a1b2c3;timestamp;temperatura;prag` |
+| `ssatr/<student>/devices/esp32-a1b2c3/commands` | service → device | aperiodic | `SET_INTERVAL 1000` |
+| `ssatr/<student>/devices/esp32-a1b2c3/status` | device → service | aperiodic | `esp32-a1b2c3;timestamp;OK SET_INTERVAL 1000` |
 
 Comenzile pe care trebuie să le accepte device-ul:
 
@@ -147,7 +147,7 @@ Senzorul intern nu poate fi „resetat”, de aceea comanda `RESET` are alt efec
 
 ### 2. Serviciul business (`start/business-service/`)
 
-- Rezolvarea voastră din tema 01 (`TODO 4` … `TODO 6`), adusă în acest proiect. Serviciul trebuie să afișeze în dashboard device-ul `esp32-1`, să-i salveze mesajele în fișierele CSV și să-i trimită comenzi.
+- Rezolvarea voastră din tema 01 (`TODO 4` … `TODO 6`), adusă în acest proiect. Serviciul trebuie să afișeze în dashboard device-ul plăcii voastre (`esp32-...`), să-i salveze mesajele în fișierele CSV și să-i trimită comenzi.
 
 ### 3. Funcționarea completă
 

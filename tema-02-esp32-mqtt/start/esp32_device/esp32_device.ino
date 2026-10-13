@@ -10,7 +10,8 @@
 //                          commands --> command_received() --(coada de comenzi)--> task aperiodic ---> status
 //
 // Gata implementate (nu trebuie modificate):
-//   config.h         setările: Wi-Fi, broker, STUDENT, DEVICE_ID, valorile inițiale
+//   config.h         setările: Wi-Fi, broker, STUDENT, valorile inițiale; DEVICE_ID
+//                    se citește din adresa MAC a plăcii
 //   connection.h/cpp Wi-Fi, ora exactă (SNTP), clientul MQTT, mqtt_publish(), epoch_ms()
 //
 // Așa cum este, schița se conectează la Wi-Fi și la broker și afișează pe
@@ -83,7 +84,7 @@ void setup() {
     while (!Serial && millis() - t < 3000) delay(10);  // așteptăm Serial Monitor, cel mult 3 s
     delay(200);
     Serial.println();
-    Serial.printf("=== tema 02: %s ===\n", DEVICE_ID);
+    Serial.printf("=== tema 02: STUDENT %s, DEVICE_ID %s ===\n", STUDENT, DEVICE_ID);
 
     wifi_connect();
     time_sync();

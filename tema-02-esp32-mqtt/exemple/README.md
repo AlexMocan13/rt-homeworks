@@ -118,14 +118,14 @@ Schițele din laboratoarele 1–5 includ `rt.h`, un fișier ajutător al laborat
 
 ## 8. Urmărirea mesajelor MQTT
 
-Până când business-service-ul este gata, verificați placa direct cu un client MQTT: **MQTTX** (grafic) sau `mosquitto_sub` / `mosquitto_pub`. Înlocuiți `popescu-ion` cu numele vostru:
+Până când business-service-ul este gata, verificați placa direct cu un client MQTT: **MQTTX** (grafic) sau `mosquitto_sub` / `mosquitto_pub`. Înlocuiți `popescu-ion` cu numele vostru și `esp32-a1b2c3` cu ID-ul plăcii (prima linie din Serial Monitor):
 
 ```bash
 # tot traficul vostru
 mosquitto_sub -h control.aut.utcluj.ro -p 11188 -t 'ssatr/popescu-ion/#' -v
 
 # o comandă trimisă direct plăcii
-mosquitto_pub -h control.aut.utcluj.ro -p 11188 -t 'ssatr/popescu-ion/devices/esp32-1/commands' -m 'STATUS'
+mosquitto_pub -h control.aut.utcluj.ro -p 11188 -t 'ssatr/popescu-ion/devices/esp32-a1b2c3/commands' -m 'STATUS'
 ```
 
 Brokerul este partajat și nu are parolă: oricine îl folosește vă poate citi și scrie topic-urile. Nu trimiteți pe el nimic privat.
