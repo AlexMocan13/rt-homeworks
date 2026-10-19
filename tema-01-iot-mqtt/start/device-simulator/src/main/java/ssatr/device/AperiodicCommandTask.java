@@ -1,5 +1,6 @@
 package ssatr.device;
 
+import java.util.Locale;
 import java.util.concurrent.BlockingQueue;
 
 /**
@@ -37,14 +38,58 @@ public class AperiodicCommandTask implements Runnable {
 
     @Override
     public void run() {
-        // TODO 3: implementați taskul aperiodic:
-        //   - preluați comenzile din coadă: commands.take()
-        //   - separați numele comenzii de parametru: command.split(" ")
-        //   - executați comanda (periodic.setPeriodMs(...), sensor.reset() etc.)
-        //   - publicați confirmarea pe Config.statusTopic(deviceId)
-        //   - o comandă necunoscută sau un parametru invalid nu trebuie să
-        //     oprească taskul: publicați "ERROR <motiv>"
-        //
-        // Vezi exemplul exemple/01-taskuri/.../AperiodicTaskExample.java
+        while (!Thread.currentThread().isInterrupted()) {
+            try {
+                String commandStr = commands.take();
+                long timestamp = System.currentTimeMillis();
+                String response = processCommand(commandStr);
+
+                String statusMessage = String.format(Locale.US, "%s;%d;%s", deviceId, timestamp, response);
+                mqtt.publish(Config.statusTopic(deviceId), statusMessage);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+    }
+
+    private String processCommand(String commandStr) {
+        if (commandStr == null || commandStr.trim().isEmpty()) {
+            return "Error! Command empty!";
+        }
+
+        String[] parts = commandStr.trim().split("\\s+");
+        String cmd = parts[0].toUpperCase();
+
+        try {
+            switch (cmd) {
+                case "SET_INTERVAL":
+                    if (parts.length < 2) return "ERROR! The interval value is missing!";
+                    long newInterval = Long.parseLong(parts[1]);
+                    periodic.setPeriodMs(newInterval);
+                    return "OK SET_INTERVAL: " + newInterval;
+
+                case "SET_THRESHOLD":
+                    if (parts.length < 2) return "ERROR! The threshold value is missing!";
+                    double newThreshold = Double.parseDouble(parts[1]);
+                    periodic.setThreshold(newThreshold);
+                    return String.format(Locale.US, "OK SET_THRESHOLD %.2f: ", newThreshold);
+
+                case "RESET":
+                    sensor.reset();
+                    return "OK RESET";
+
+                case "STATUS":
+                    return String.format(Locale.US, "OK STATUS: period=%d threshold=%.2f", periodic.getPeriodMs(), periodic.getThreshold());
+
+                default:
+                    return "ERROR! Unkwon command: " + cmd;
+
+            }
+        } catch (NumberFormatException e) {
+            return "ERROR! Unknown parameter for: " + cmd;
+        } catch (Exception e) {
+            return "ERROR " + e.getMessage();
+        }
     }
 }

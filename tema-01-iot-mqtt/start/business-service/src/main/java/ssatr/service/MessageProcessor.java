@@ -27,12 +27,54 @@ public class MessageProcessor implements Runnable {
 
     @Override
     public void run() {
-        // TODO 4: într-o buclă:
-        //   - preluați un mesaj: inbox.take()
-        //   - salvați mesajul în fișierul CSV: storage.append(kind, mesaj)
-        //     (CsvStorage este gata implementată)
-        //   - actualizați dashboard-ul, în funcție de kind
-        //   - alarmele și confirmările se afișează imediat în consolă
-        //   - un mesaj greșit (format invalid) nu trebuie să oprească thread-ul
+        while(!Thread.currentThread().isInterrupted()) {
+            try {
+                String message = inbox.take();
+
+                storage.append(kind, message);
+
+                String[] parts = message.split(";");
+                if(parts.length < 3) {
+                    System.err.println("Invalid message format ignored (" + kind + "): " + message);
+                    continue;
+                }
+
+                String deviceId = parts[0];
+                long timestamp = Long.parseLong(parts[1]);
+
+                switch(kind) {
+                    case "telemetry":
+                        double temperature = Double.parseDouble(parts[2]);
+                        dashboard.updateTelemetry(deviceId, timestamp, temperature);
+                        break;
+
+                    case "alarm":
+                        if (parts.length >= 4) {
+                            double tempAlarm = Double.parseDouble(parts[2]);
+                            double threshold = Double.parseDouble(parts[3]);
+                            dashboard.addAlarm(deviceId, timestamp);
+                            System.out.printf("\n[ALARM] Device %s exceeded threshold! (Temp.: %.2f > Threshold: %.2f)\n", deviceId, tempAlarm, threshold);
+                        }
+                        break;
+
+                    case "status":
+                        String statusText = parts[2];
+                        dashboard.updateStatus(deviceId, timestamp, statusText);
+                        System.out.printf("\n[STATUS] Device %s responded: %s\n", deviceId, statusText);
+                        break;
+
+                    default:
+                        System.err.println("Unknown message kind: " + kind);
+                        break;
+                }
+
+            } catch(InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+
+            } catch (Exception e) {
+                System.err.println("Error processing message (" + kind + "): " + e.getMessage());
+            }
+        }
     }
 }

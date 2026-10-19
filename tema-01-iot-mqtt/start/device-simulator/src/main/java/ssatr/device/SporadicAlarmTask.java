@@ -1,5 +1,6 @@
 package ssatr.device;
 
+import java.util.Locale;
 import java.util.concurrent.BlockingQueue;
 
 /**
@@ -18,6 +19,7 @@ public class SporadicAlarmTask implements Runnable {
     private final String deviceId;
     private final MqttConnection mqtt;
     private final BlockingQueue<Double> alarmEvents;
+    private PeriodicTelemetryTask telemetryTask;
 
     public SporadicAlarmTask(String deviceId, MqttConnection mqtt, BlockingQueue<Double> alarmEvents) {
         this.deviceId = deviceId;
@@ -25,17 +27,34 @@ public class SporadicAlarmTask implements Runnable {
         this.alarmEvents = alarmEvents;
     }
 
+    public void setTelemetryTask(PeriodicTelemetryTask telemetryTask) {
+        this.telemetryTask = telemetryTask;
+    }
+
     @Override
     public void run() {
-        // TODO 2: implementați taskul sporadic:
-        //   - așteptați un eveniment: alarmEvents.take()
-        //   - dacă de la ultima eliberare au trecut mai puțin de
-        //     MIN_INTERARRIVAL_MS, respingeți evenimentul (afișați un mesaj)
-        //   - altfel publicați pe Config.alarmTopic(deviceId) mesajul
-        //     "deviceId;timestamp;temperatura;prag"
-        //     (pragul curent poate fi transmis împreună cu temperatura sau
-        //      citit din PeriodicTelemetryTask; alegeți și justificați în raport)
-        //
-        // Vezi exemplul exemple/01-taskuri/.../SporadicTaskExample.java
+        long lastRelease = 0;
+
+        while(!Thread.currentThread().isInterrupted()) {
+            try {
+                double temperature = alarmEvents.take();
+                long now = System.currentTimeMillis();
+
+                if(now - lastRelease < MIN_INTERARRIVAL_MS) {
+                    System.out.println("Alarma refuzata! Au trecut mai putin de: " + MIN_INTERARRIVAL_MS + " ms.");
+                    continue;
+                }
+
+                lastRelease = now;
+                double threshold = (telemetryTask != null) ? telemetryTask.getThreshold() : 28.0;
+
+                String message = String.format(Locale.US, "%s;%d;%.2f;%.2f", deviceId, now, temperature, threshold);
+                mqtt.publish(Config.alarmTopic(deviceId), message);
+
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
     }
 }
