@@ -27,12 +27,46 @@ public class MessageProcessor implements Runnable {
 
     @Override
     public void run() {
-        // TODO 4: într-o buclă:
-        //   - preluați un mesaj: inbox.take()
-        //   - salvați mesajul în fișierul CSV: storage.append(kind, mesaj)
-        //     (CsvStorage este gata implementată)
-        //   - actualizați dashboard-ul, în funcție de kind
-        //   - alarmele și confirmările se afișează imediat în consolă
-        //   - un mesaj greșit (format invalid) nu trebuie să oprească thread-ul
+        while (!Thread.currentThread().isInterrupted()) {
+            try {
+                String payload = inbox.take();
+
+                storage.append(kind, payload);
+
+                String[] parts = payload.split(";");
+
+                if (parts.length >= 3) {
+                    String deviceId = parts[0];
+                    long timestamp = Long.parseLong(parts[1]);
+
+                    switch (kind) {
+                        case "telemetry":
+                            double temperature = Double.parseDouble(parts[2]);
+                            dashboard.updateTelemetry(deviceId, timestamp, temperature);
+                            break;
+
+                        case "alarm":
+                            double alarmTemp = Double.parseDouble(parts[2]);
+                            dashboard.addAlarm(deviceId, timestamp);
+                            System.out.printf("[ALARM] Device %s a depășit pragul! Temperatura: %.2f°C%n", deviceId, alarmTemp);
+                            break;
+
+                        case "status":
+                            int firstSemicolon = payload.indexOf(';');
+                            int secondSemicolon = payload.indexOf(';', firstSemicolon + 1);
+                            String statusText = payload.substring(secondSemicolon + 1);
+
+                            dashboard.updateStatus(deviceId, timestamp, statusText);
+                            System.out.printf("[STATUS] Device %s: %s%n", deviceId, statusText);
+                            break;
+                    }
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            } catch (Exception e) {
+                System.err.println("[Eroare MessageProcessor - " + kind + "] Mesaj invalid sărit: " + e.getMessage());
+            }
+        }
     }
 }

@@ -20,7 +20,6 @@ public class MqttConnection {
     private final MqttClient client;
 
     public MqttConnection(String clientName) throws MqttException {
-        // ID-ul clientului trebuie să fie unic pe broker
         String clientId = clientName + "-" + System.currentTimeMillis();
         client = new MqttClient(Config.BROKER, clientId, new MemoryPersistence());
     }

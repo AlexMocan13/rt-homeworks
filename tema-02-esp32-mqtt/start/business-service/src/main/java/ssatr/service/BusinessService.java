@@ -24,7 +24,6 @@ public class BusinessService {
         BlockingQueue<String> alarmInbox = new LinkedBlockingQueue<>();
         BlockingQueue<String> statusInbox = new LinkedBlockingQueue<>();
 
-        // "+" înseamnă "orice device": primim mesajele de la toate device-urile
         mqtt.subscribe(Config.telemetryTopic("+"), telemetryInbox);
         mqtt.subscribe(Config.alarmTopic("+"), alarmInbox);
         mqtt.subscribe(Config.statusTopic("+"), statusInbox);
@@ -36,7 +35,6 @@ public class BusinessService {
         new Thread(new MessageProcessor("alarm", alarmInbox, storage, dashboard), "alarm").start();
         new Thread(new MessageProcessor("status", statusInbox, storage, dashboard), "status").start();
 
-        // consola rulează pe thread-ul principal
         new CommandConsole(mqtt, dashboard).run();
 
         mqtt.disconnect();

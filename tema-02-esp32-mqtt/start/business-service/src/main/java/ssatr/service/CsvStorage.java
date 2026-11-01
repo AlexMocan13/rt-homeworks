@@ -39,7 +39,6 @@ public class CsvStorage {
         try {
             Files.createDirectories(directory);
 
-            // un fișier nou începe cu rândul de antet
             if (Files.notExists(file)) {
                 Files.writeString(file, header(kind) + "\n");
             }
